@@ -61,6 +61,7 @@ src/
   elements/
     Autocomplete.tsx
   index.ts
+  main.ts
 
 docs/
   Autocomplete.md
