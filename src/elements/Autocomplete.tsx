@@ -49,10 +49,9 @@ interface AutocompleteProps extends FormElementProps<Primitive | Primitive[] | n
 
 /**
  * Autocomplete form element (MUI hook + VertiGIS/Calcite styling) that accepts a simple JSON array.
- * @displayName Autocomplete
- * @description Autocomplete using MUI's headless `useAutocomplete` while matching VertiGIS Web (Calcite) styling. Supports single/multiple selection, free text, and emits standard Workflow events.
- * @supportedApps GWV
- * @param props The props that will be provided by the Workflow runtime.
+ * - Controlled input (no reliance on MUI internal setters)
+ * - Transparent popup that inherits Calcite theme, with ✓ for selected items
+ * - Popper/portal so the list renders above the form footer
  */
 function Autocomplete(props: AutocompleteProps): React.ReactElement {
     const {
@@ -95,16 +94,19 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
         style,
     } = props;
 
-    // ---- styles (Calcite/VertiGIS tokens, with fallbacks) ----
+    // ---- Calcite/VertiGIS tokens (favor host variables; minimal fallbacks) ----
     const theme = {
-        surface: "var(--calcite-color-foreground-1, #fff)",
-        surfaceElevated: "var(--calcite-color-foreground-2, #fff)",
-        border: "var(--calcite-color-border-3, #e0e0e0)",
-        text: "var(--calcite-color-text-1, #1a1a1a)",
-        textMuted: "var(--calcite-color-text-3, #6a6a6a)",
-        brand: "var(--calcite-color-brand, #1976d2)",
+        surface: "var(--calcite-ui-foreground-1, var(--calcite-color-foreground-1, inherit))",
+        surfaceElevated: "var(--calcite-ui-foreground-2, var(--calcite-color-foreground-2, inherit))",
+        border: "var(--calcite-ui-border-1, var(--calcite-color-border-1, currentColor))",
+        borderInput: "var(--calcite-ui-border-input, var(--calcite-ui-border-1, currentColor))",
+        text: "var(--calcite-ui-text-1, var(--calcite-color-text-1, inherit))",
+        textMuted: "var(--calcite-ui-text-3, var(--calcite-color-text-3, inherit))",
+        brand: "var(--calcite-ui-brand, var(--calcite-color-brand, currentColor))",
+        focusOffset: "var(--calcite-ui-focus-offset-invert, 0)",
         radius: "var(--calcite-border-radius, 8px)",
         shadow: "var(--calcite-shadow-1, 0 8px 24px rgba(0,0,0,0.08))",
+        zIndexDropdown: "var(--calcite-floating-ui-z-index, var(--calcite-app-z-index-dropdown, 9999))",
     } as const;
 
     const styles: Record<string, React.CSSProperties> = {
@@ -117,12 +119,14 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             border: `1px solid ${theme.border}`,
             borderRadius: theme.radius as any,
             padding: "6px 10px",
-            background: disabled ? "var(--calcite-color-foreground-3, #f5f5f5)" : theme.surface,
+            background: disabled ? "var(--calcite-ui-foreground-3, var(--calcite-color-foreground-3, inherit))" : theme.surface,
             outline: `2px solid transparent`,
             transition: "outline 120ms ease, background 120ms ease, border-color 120ms ease",
         },
         inputWrapFocused: {
             outline: `2px solid ${theme.brand}`,
+            outlineOffset: theme.focusOffset as any,
+            border: `1px solid ${theme.borderInput}`,
         },
         input: {
             flex: 1,
@@ -136,10 +140,10 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
         },
         clearBtn: { border: "none", background: "transparent", fontSize: 16, cursor: "pointer", color: theme.textMuted },
         listbox: {
-            zIndex: 1, // Popper creates its own stacking context; we also set Popper's zIndex
+            zIndex: 1,
             maxHeight: listboxMaxHeight,
             overflow: "auto",
-            background: theme.surfaceElevated,
+            background: "var(--primaryBackground, var(--calcite-ui-foreground-2, var(--calcite-color-foreground-2, inherit)))",
             border: `1px solid ${theme.border}`,
             borderRadius: theme.radius as any,
             boxShadow: theme.shadow as any,
@@ -149,7 +153,7 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             margin: 0,
         },
         option: { padding: "8px 10px", cursor: "pointer", color: theme.text, display: "flex", alignItems: "center", gap: 8 },
-        optionDisabled: { padding: "8px 10px", color: "var(--calcite-color-text-4, #aaa)", cursor: "not-allowed", display: "flex", alignItems: "center", gap: 8 },
+        optionDisabled: { padding: "8px 10px", color: theme.textMuted, cursor: "not-allowed", display: "flex", alignItems: "center", gap: 8 },
         helper: { marginTop: 4, fontSize: 12, color: theme.textMuted },
         tag: {
             display: "inline-flex",
@@ -159,7 +163,7 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             border: `1px solid ${theme.border}`,
             padding: "2px 8px",
             fontSize: 12,
-            background: "var(--calcite-color-foreground-2, #fafafa)",
+            background: "var(--calcite-ui-foreground-2, var(--calcite-color-foreground-2, inherit))",
             color: theme.text,
             marginRight: 6,
             marginBottom: 6,
@@ -186,11 +190,30 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
     // We control popup open state so clicks always open
     const [open, setOpen] = React.useState<boolean>(false);
 
+    // track hover to support custom hover background token
+    const [hoveredIndex, setHoveredIndex] = React.useState<number | null>(null);
+
     // control the input value ourselves to avoid depending on MUI's setInputValue
     const [input, setInput] = React.useState<string>("");
 
-    // local ref to use as Popper anchor (the hook only exposes a setter)
+    // local refs for Popper anchoring + themed container
     const [anchorEl, setAnchorElLocal] = React.useState<HTMLElement | null>(null);
+    const [portalContainer, setPortalContainer] = React.useState<HTMLElement | null>(null);
+
+    React.useEffect(() => {
+        if (!anchorEl) return;
+        // Find the nearest ancestor that defines Calcite CSS vars so the Popper inherits theme colors
+        let el: HTMLElement | null = anchorEl;
+        const doc = el.ownerDocument;
+        let found: HTMLElement | null = null;
+        while (el) {
+            const cs = doc.defaultView?.getComputedStyle(el);
+            const fg = cs?.getPropertyValue("--calcite-ui-foreground-1") || cs?.getPropertyValue("--calcite-color-foreground-1");
+            if (fg && fg.trim() !== "") { found = el; break; }
+            el = el.parentElement as HTMLElement | null;
+        }
+        setPortalContainer(found ?? doc.body);
+    }, [anchorEl]);
 
     const {
         getRootProps,
@@ -215,7 +238,6 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             const out = multiple ? (newVal as Primitive[]) : ((newVal as Primitive) ?? null);
             setValue(out as any);
             emit("change", { value: out });
-            // If selecting from the list, clear input to make repeated picks easy
             setInput("");
         },
         onInputChange: (_e: any, newInput: string) => {
@@ -223,14 +245,8 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             emit("input", { value: newInput });
         },
         open,
-        onOpen: () => {
-            setOpen(true);
-            emit("open", { input });
-        },
-        onClose: () => {
-            setOpen(false);
-            emit("close", { input });
-        },
+        onOpen: () => { setOpen(true); emit("open", { input }); },
+        onClose: () => { setOpen(false); emit("close", { input }); },
         disabled,
         readOnly,
         // Keyboard/UX flags
@@ -246,7 +262,7 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
     const inputProps = getInputProps();
     const readOnlyOrDisabled = disabled || readOnly;
 
-    // Compute dynamic width for the popper listbox to match the field, if not provided
+    // Match popup width to field, if not provided via prop
     const computedListboxWidth = listboxWidth ?? anchorEl?.clientWidth;
 
     return (
@@ -324,9 +340,10 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             <Popper
                 open={open && (groupedOptions as Primitive[]).length > 0}
                 anchorEl={anchorEl}
+                container={portalContainer}
                 placement="bottom-start"
                 disablePortal={false}
-                style={{ zIndex: 9999 }}
+                style={{ zIndex: "var(--calcite-floating-ui-z-index, var(--calcite-app-z-index-dropdown, 9999))" }}
             >
                 <ul {...getListboxProps()} style={{ ...styles.listbox, width: computedListboxWidth }} role="listbox">
                     {(groupedOptions as Primitive[]).map((opt, index) => {
@@ -339,8 +356,20 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
                             <li
                                 key={key}
                                 {...optionProps}
-                                style={disabledOpt ? styles.optionDisabled : styles.option}
+                                onMouseEnter={(e) => { (optionProps as any).onMouseEnter?.(e); (optionProps as any).onMouseOver?.(e); setHoveredIndex(index); }}
+                                onMouseLeave={(e) => { (optionProps as any).onMouseLeave?.(e); setHoveredIndex((prev) => (prev === index ? null : prev)); }}
+                                style={{
+                                    ...(disabledOpt ? styles.optionDisabled : styles.option),
+                                    background:
+                                        hoveredIndex === index
+                                            ? "var(--itemHoverBackground, var(--calcite-ui-foreground-2, var(--calcite-color-foreground-2, inherit)))"
+                                            : (selected
+                                                ? "var(--calcite-ui-foreground-2, var(--calcite-color-foreground-2, inherit))"
+                                                : undefined),
+
+                                }}
                                 aria-disabled={disabledOpt}
+                                aria-selected={selected}
                             >
                                 <span style={{ ...styles.check, opacity: selected ? 1 : 0 }}>✓</span>
                                 <span>{String(opt)}</span>
