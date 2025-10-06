@@ -138,9 +138,13 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             border: `1px solid ${theme.border}`,
             borderRadius: theme.radius as any,
             boxShadow: theme.shadow as any,
+            // remove default bullets/margins on <ul>
+            listStyle: "none",
+            padding: 0,
+            margin: 0,
         },
-        option: { padding: "8px 10px", cursor: "pointer", color: theme.text },
-        optionDisabled: { padding: "8px 10px", color: "var(--calcite-color-text-4, #aaa)", cursor: "not-allowed" },
+        option: { padding: "8px 10px", cursor: "pointer", color: theme.text, display: "flex", alignItems: "center", gap: 8 },
+        optionDisabled: { padding: "8px 10px", color: "var(--calcite-color-text-4, #aaa)", cursor: "not-allowed", display: "flex", alignItems: "center", gap: 8 },
         helper: { marginTop: 4, fontSize: 12, color: theme.textMuted },
         tag: {
             display: "inline-flex",
@@ -156,6 +160,7 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             marginBottom: 6,
         },
         tagBtn: { cursor: "pointer", border: "none", background: "transparent", fontSize: 14, lineHeight: 1, color: theme.textMuted },
+        check: { width: 16, display: "inline-block", textAlign: "center" },
     };
 
     // Unified event emitter
@@ -170,13 +175,13 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
             if (value == null) return [] as Primitive[];
             return [value as Primitive];
         }
-        return Array.isArray(value) ? (value[0] as Primitive) ?? null : (value as Primitive | null);
+        return Array.isArray(value) ? ((value[0] as Primitive) ?? null) : (value as Primitive | null);
     }, [value, multiple]);
 
     // We control popup open state so clicks always open
     const [open, setOpen] = React.useState<boolean>(false);
 
-    // 🔧 NEW: control the input value ourselves to avoid depending on MUI's setInputValue
+    // 🔧 control the input value ourselves to avoid depending on MUI's setInputValue
     const [input, setInput] = React.useState<string>("");
 
     const {
@@ -222,7 +227,6 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
         readOnly,
     });
 
-    // Handlers to mirror the earlier behavior
     const onClickInput = () => {
         if (!disabled && !readOnly) setOpen(true);
     };
@@ -235,7 +239,7 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
         <div {...getRootProps()} className={className} style={{ ...styles.root, ...style }} aria-disabled={readOnlyOrDisabled}>
             {label && <div style={styles.labelRow}>{label}</div>}
 
-            <div ref={setAnchorEl} style={{ ...styles.inputWrap, ...(focused ? styles.inputWrapFocused : null) }}>
+            <div ref={setAnchorEl} style={{ ...styles.inputWrap, ...(focused ? styles.inputWrapFocused : {}) }}>
                 {multiple && Array.isArray(uaValue) && uaValue.length > 0 &&
                     (uaValue as Primitive[]).map((opt: Primitive, index: number) => {
                         const { key, ...tagProps } = (getTagProps as any)({ index });
@@ -263,7 +267,6 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
                     placeholder={placeholder}
                     disabled={readOnlyOrDisabled}
                     autoFocus={autoFocus}
-                    // ensure the DOM input always reflects our controlled value
                     value={input}
                     onChange={(e) => {
                         inputProps.onChange?.(e as any);
@@ -303,6 +306,9 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
                     {(groupedOptions as Primitive[]).map((opt, index) => {
                         const { key, ...optionProps } = getOptionProps({ option: opt, index });
                         const disabledOpt = getOptionDisabled?.(opt) ?? false;
+                        const selected = multiple
+                            ? (Array.isArray(uaValue) && (uaValue as Primitive[]).includes(opt))
+                            : (uaValue === opt);
                         return (
                             <li
                                 key={key}
@@ -310,7 +316,8 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
                                 style={disabledOpt ? styles.optionDisabled : styles.option}
                                 aria-disabled={disabledOpt}
                             >
-                                {String(opt)}
+                                <span style={{ ...styles.check, opacity: selected ? 1 : 0 }}>✓</span>
+                                <span>{String(opt)}</span>
                             </li>
                         );
                     })}
