@@ -1,161 +1,77 @@
-# VertiGIS Autocomplete — Custom Workflow Form Element
+# VertiGIS Studio Workflow — Custom Form Elements
 
-A theme‑aware Autocomplete for **VertiGIS Studio Workflow / Web**, built on **MUI’s `useAutocomplete`**. It honors Calcite design tokens, renders its dropdown above footers/overlays using Popper, and avoids the `setUaInputValue` runtime by controlling the input value internally.
+This repo contains a small library of **custom form elements** for VertiGIS Studio Workflow / Web. Each element is self‑contained and documented with its own README.
 
-> **Element ID:** `Autocomplete`
-> **Source:** [`src/elements/Autocomplete.tsx`](./src/elements/Autocomplete.tsx)
+## Elements
 
----
+* **Autocomplete** — theme‑aware, Popper‑based dropdown using MUI’s `useAutocomplete`. ✓ selection tick, multi‑select chips, Calcite token support.
+  → See **[`docs/Autocomplete.md`](./docs/Autocomplete.md)**
 
-## Features
-
-* **Controlled input** (no reliance on MUI internal setters) → fixes `setUaInputValue is not a function`.
-* **Single & multi‑select**, clearable, optional **free‑solo** text.
-* Popup rendered with **MUI Popper** (portaled) so it **stays above** Workflow footers/overlays.
-* **Calcite‑aware theming** (no hard‑coded colors).
-* **Token‑driven backgrounds**:
-
-  * Dropdown: `--primaryBackground` (with Calcite fallback)
-  * Item hover: `--itemHoverBackground`
-* Selected items show a **✓ tick**; list has **no bullets**.
-* Keyboard support (arrows, Enter/Space select, Esc close, optional Home/End).
+> Add more elements here as the repo grows and link them to their docs under `docs/`.
 
 ---
 
-## Quick Start
+## Quick start
 
 ```bash
-# Install dependencies
+# install dependencies
 npm install
 
-# Build the Workflow package (optimized production build)
+# build the Workflow package
 npm run build
 ```
 
-Ensure your `src/index.ts` re‑exports the element (most templates already do this):
+By default this runs `vertigis-workflow-sdk build` and produces an optimized bundle.
+
+### Exporting elements
+
+Make sure your `src/index.ts` re‑exports each element’s registration:
 
 ```ts
 export { default as Autocomplete } from "./elements/Autocomplete";
-```
-
-Then add **Autocomplete** to a form in **VertiGIS Studio Workflow Designer** and configure its properties.
-
----
-
-## Usage (example)
-
-```tsx
-import AutocompleteRegistration from "./elements/Autocomplete";
-
-<AutocompleteRegistration.component
-  label="Assets"
-  placeholder="Select…"
-  options={["Bridge", "Road", "Tunnel"]}
-  multiple
-  openOnFocus
-  clearable
-  listboxMaxHeight={280}
-  selectOnFocus
-  handleHomeEndKeys
-/>
+// export { default as OtherElement } from "./elements/OtherElement";
 ```
 
 ---
 
-## Props
+## Using in VertiGIS Studio
 
-*All props optional unless noted. Defaults shown where applicable.*
-
-| Prop                | Type                                             |     Default | Description                                              |
-| ------------------- | ------------------------------------------------ | ----------: | -------------------------------------------------------- |
-| `options`           | `(string \| number)[]`                           |        `[]` | Items shown in the list.                                 |
-| `value`             | `string \| number \| (string\|number)[] \| null` |      `null` | Current value (single or multi according to `multiple`). |
-| `multiple`          | `boolean`                                        |     `false` | Enable multi‑select; renders chips for selected values.  |
-| `freeSolo`          | `boolean`                                        |     `false` | Allow arbitrary text not present in `options`.           |
-| `openOnFocus`       | `boolean`                                        |     `false` | Open the dropdown on input focus.                        |
-| `clearable`         | `boolean`                                        |      `true` | Show a clear (×) button.                                 |
-| `selectOnFocus`     | `boolean`                                        | MUI default | Select input text when focused.                          |
-| `clearOnBlur`       | `boolean`                                        | MUI default | Clear input on blur if nothing selected.                 |
-| `handleHomeEndKeys` | `boolean`                                        | MUI default | Home/End jump to first/last option when open.            |
-| `placeholder`       | `string`                                         |        `""` | Input placeholder.                                       |
-| `label`             | `string`                                         |           — | Label above the field.                                   |
-| `helperText`        | `string`                                         |        `""` | Helper text below the field.                             |
-| `autoFocus`         | `boolean`                                        |     `false` | Autofocus input on mount.                                |
-| `readOnly`          | `boolean`                                        |     `false` | Read‑only mode.                                          |
-| `disabled`          | `boolean`                                        |     `false` | Disabled state.                                          |
-| `listboxMaxHeight`  | `number`                                         |       `220` | Max dropdown height in px.                               |
-| `listboxWidth`      | `number`                                         | input width | Override dropdown width (defaults to input width).       |
-| `filterOptions`     | `(options, state) => options`                    | MUI default | Custom filter function.                                  |
-| `getOptionDisabled` | `(option) => boolean`                            |           — | Conditionally disable options.                           |
-| `groupBy`           | `(option) => string`                             |           — | Optional group headers.                                  |
-
-### Events (raised via `raiseEvent`)
-
-* `input` → `{ value: string }` — when the user types
-* `change` → `{ value: any }` — when selection changes
-* `open` → `{ input: string }` — when the popup opens
-* `close` → `{ input: string }` — when the popup closes
-* `clear` → `{ value: null | [] }` — when the clear button is used
+1. Build the package.
+2. Load the bundle into your VertiGIS Studio Web app (per your environment).
+3. In Workflow Designer, add the element by its **id** (see the element README) and configure its props.
 
 ---
 
 ## Theming
 
-The element reads Calcite tokens so it matches your app automatically. You can also tune two project‑level tokens.
+All elements are designed to respect **Calcite** tokens (no hard‑coded colors). Some elements also expose project‑level tokens for fine control. See each element’s README for the exact tokens it uses.
 
-### Calcite tokens used
+Common Calcite tokens referenced across elements:
 
-* `--calcite-ui-brand` (focus ring)
-* `--calcite-ui-border-input` (focused border)
-* `--calcite-ui-foreground-1`, `--calcite-ui-foreground-2`, `--calcite-ui-foreground-3` (surfaces)
-* `--calcite-ui-text-1`, `--calcite-ui-text-3` (text)
-* `--calcite-floating-ui-z-index` → `--calcite-app-z-index-dropdown` (popup layering)
+* `--calcite-ui-brand`, `--calcite-ui-border-input`
+* `--calcite-ui-foreground-1/2/3`
+* `--calcite-ui-text-1/3`
+* `--calcite-floating-ui-z-index` → `--calcite-app-z-index-dropdown`
 
-### Project tokens
+---
 
-* `--primaryBackground` → **dropdown background**
-  Fallback: `--calcite-ui-foreground-2` → `--calcite-color-foreground-2` → `inherit`
-* `--itemHoverBackground` → **row hover background**
-  Fallback: `--calcite-ui-foreground-2` → `--calcite-color-foreground-2` → `inherit`
+## Repo structure
 
-#### Example
+```
+src/
+  elements/
+    Autocomplete.tsx
+  index.ts
 
-```css
-/* Light */
-:root {
-  --primaryBackground: var(--calcite-ui-foreground-2);
-  --itemHoverBackground: var(--calcite-ui-foreground-2);
-}
-/* Dark */
-.calcite-mode-dark {
-  --primaryBackground: var(--calcite-ui-foreground-1);
-  --itemHoverBackground: var(--calcite-ui-foreground-2);
-}
+docs/
+  Autocomplete.md
 ```
 
 ---
 
-## Troubleshooting
+## Contributing
 
-**Popup behind footer/overlay**
-Popper + portal is enabled. If needed, raise `--calcite-floating-ui-z-index` or `--calcite-app-z-index-dropdown` in your app shell.
-
-**Bullets appear next to items**
-The listbox resets the `<ul>` defaults. If bullets persist, a global stylesheet is overriding them; increase specificity.
-
-**Transparent dropdown**
-Define `--primaryBackground` to your desired surface color.
-
-**Hover not visible on selected item**
-Hover takes precedence using `--itemHoverBackground`; ensure it contrasts with your selected color.
-
----
-
-## Scripts
-
-* `npm run build` → Production build via `vertigis-workflow-sdk build`
-
----
+PRs welcome. Keep styling token‑driven and avoid hard‑coded colors. When adding a new element, include a `docs/<ElementName>.md` describing props, events, theming tokens, and usage.
 
 ## License
 
