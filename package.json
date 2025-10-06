@@ -1,0 +1,38 @@
+{
+    "name": "vertigis-workflow-project",
+    "private": true,
+    "version": "1.0.0",
+    "description": "",
+    "license": "UNLICENSED",
+    "author": "",
+    "scripts": {
+        "build": "vertigis-workflow-sdk build",
+        "generate": "vertigis-workflow-sdk generate",
+        "start": "vertigis-workflow-sdk start",
+        "prettier": "prettier --write \"**/*.json\" \"**/*.js\" \"**/*.ts\" \"**/*.tsx\""
+    },
+    "devDependencies": {
+        "@vertigis/workflow": "5.47.0",
+        "@vertigis/workflow-sdk": "5.1.3",
+        "prettier": "^3.3.1",
+        "typescript": "^5.4.3"
+    },
+    "overrides": {
+        "@vertigis/react-ui": {
+            "react": ">=18 <19",
+            "react-dom": ">=18 <19"
+        }
+    },
+    "browserslist": [
+        "last 2 chrome versions",
+        "last 2 edge versions",
+        "last 2 firefox versions",
+        "last 2 safari versions"
+    ],
+    "dependencies": {
+        "@emotion/react": "^11.14.0",
+        "@emotion/styled": "^11.14.1",
+        "@mui/base": "^5.0.0-beta.70",
+        "@mui/material": "^6.5.0"
+    }
+}
