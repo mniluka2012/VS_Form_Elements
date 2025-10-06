@@ -7,7 +7,6 @@ This repo contains a small library of **custom form elements** for VertiGIS Stud
 * **Autocomplete** — theme‑aware, Popper‑based dropdown using MUI’s `useAutocomplete`. ✓ selection tick, multi‑select chips, Calcite token support.
   → See **[`docs/Autocomplete.md`](./docs/Autocomplete.md)**
 
-> Add more elements here as the repo grows and link them to their docs under `docs/`.
 
 ---
 
