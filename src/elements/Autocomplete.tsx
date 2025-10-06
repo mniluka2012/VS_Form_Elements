@@ -1,6 +1,7 @@
 import * as React from "react";
 import { FormElementProps, FormElementRegistration } from "@vertigis/workflow";
 import useAutocomplete from "@mui/material/useAutocomplete";
+import Popper from "@mui/material/Popper";
 
 // Accept only a simple JSON array of primitives (string | number)
 type Primitive = string | number;
@@ -14,6 +15,12 @@ interface AutocompleteProps extends FormElementProps<Primitive | Primitive[] | n
     freeSolo?: boolean;
     openOnFocus?: boolean;
     clearable?: boolean;
+    /** Select input text when focused (see MUI Autocomplete). */
+    selectOnFocus?: boolean;
+    /** Clear input text on blur when nothing is selected (see MUI Autocomplete). */
+    clearOnBlur?: boolean;
+    /** Handle Home/End keys to jump to first/last option when popup is open. */
+    handleHomeEndKeys?: boolean;
 
     // Optional helpers (passed through to the MUI hook)
     /** Custom filter; by default a case-insensitive substring match is used. */
@@ -63,6 +70,9 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
         freeSolo = false,
         openOnFocus = false,
         clearable = true,
+        selectOnFocus,
+        clearOnBlur,
+        handleHomeEndKeys,
 
         // Extras
         filterOptions,
@@ -126,13 +136,8 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
         },
         clearBtn: { border: "none", background: "transparent", fontSize: 16, cursor: "pointer", color: theme.textMuted },
         listbox: {
-            position: "absolute",
-            zIndex: 10,
-            marginTop: 6,
-            left: 0,
-            right: 0,
+            zIndex: 1, // Popper creates its own stacking context; we also set Popper's zIndex
             maxHeight: listboxMaxHeight,
-            width: listboxWidth,
             overflow: "auto",
             background: theme.surfaceElevated,
             border: `1px solid ${theme.border}`,
@@ -181,8 +186,11 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
     // We control popup open state so clicks always open
     const [open, setOpen] = React.useState<boolean>(false);
 
-    // 🔧 control the input value ourselves to avoid depending on MUI's setInputValue
+    // control the input value ourselves to avoid depending on MUI's setInputValue
     const [input, setInput] = React.useState<string>("");
+
+    // local ref to use as Popper anchor (the hook only exposes a setter)
+    const [anchorEl, setAnchorElLocal] = React.useState<HTMLElement | null>(null);
 
     const {
         getRootProps,
@@ -225,6 +233,10 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
         },
         disabled,
         readOnly,
+        // Keyboard/UX flags
+        selectOnFocus,
+        clearOnBlur,
+        handleHomeEndKeys,
     });
 
     const onClickInput = () => {
@@ -232,14 +244,22 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
     };
 
     const inputProps = getInputProps();
-
     const readOnlyOrDisabled = disabled || readOnly;
+
+    // Compute dynamic width for the popper listbox to match the field, if not provided
+    const computedListboxWidth = listboxWidth ?? anchorEl?.clientWidth;
 
     return (
         <div {...getRootProps()} className={className} style={{ ...styles.root, ...style }} aria-disabled={readOnlyOrDisabled}>
             {label && <div style={styles.labelRow}>{label}</div>}
 
-            <div ref={setAnchorEl} style={{ ...styles.inputWrap, ...(focused ? styles.inputWrapFocused : {}) }}>
+            <div
+                ref={(el) => {
+                    (setAnchorEl as any)?.(el);
+                    setAnchorElLocal(el as HTMLElement | null);
+                }}
+                style={{ ...styles.inputWrap, ...(focused ? styles.inputWrapFocused : {}) }}
+            >
                 {multiple && Array.isArray(uaValue) && uaValue.length > 0 &&
                     (uaValue as Primitive[]).map((opt: Primitive, index: number) => {
                         const { key, ...tagProps } = (getTagProps as any)({ index });
@@ -301,8 +321,14 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
                 )}
             </div>
 
-            {open && (groupedOptions as Primitive[]).length > 0 && (
-                <ul {...getListboxProps()} style={styles.listbox} role="listbox">
+            <Popper
+                open={open && (groupedOptions as Primitive[]).length > 0}
+                anchorEl={anchorEl}
+                placement="bottom-start"
+                disablePortal={false}
+                style={{ zIndex: 9999 }}
+            >
+                <ul {...getListboxProps()} style={{ ...styles.listbox, width: computedListboxWidth }} role="listbox">
                     {(groupedOptions as Primitive[]).map((opt, index) => {
                         const { key, ...optionProps } = getOptionProps({ option: opt, index });
                         const disabledOpt = getOptionDisabled?.(opt) ?? false;
@@ -322,7 +348,7 @@ function Autocomplete(props: AutocompleteProps): React.ReactElement {
                         );
                     })}
                 </ul>
-            )}
+            </Popper>
 
             {helperText && <div style={styles.helper}>{helperText}</div>}
         </div>
